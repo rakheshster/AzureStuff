@@ -159,12 +159,22 @@ foreach ($site in $AzureNetwork) {
     $VNSElement.SetAttribute("name", $site.name)
     $VNSElement.SetAttribute("AffinityGroup", $AzureAffinityGroup)
 
-    # Define the AddressPrefix element 
-    $AddrPrefixElement.InnerText = $site.AddrSpace
+    foreach ($addrspace in $site.AddrSpaces) {
+        $AddrSpaceElement = $VNetConfigXML.CreateElement("AddressSpace")
+        $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
 
-    # Add this as a child to the Address Space element
-    $AddrSpaceElement.AppendChild($AddrPrefixElement)
+        # Define the AddressPrefix element 
+        $AddrPrefixElement.InnerText = $addrspace.AddrSpace
 
+        # Add this as a child to the Address Space element
+        $AddrSpaceElement.AppendChild($AddrPrefixElement)
+    
+    }
+
+    
+
+    
+    # pull this up!
     # Create the Subnets element and child Subnet elements
     foreach ($subnetname in $site.Subnet.Keys) {
         # Create the Subnet element & set a name attribute
