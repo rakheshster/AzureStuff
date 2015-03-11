@@ -36,47 +36,95 @@ $VMTimeZone = "Arabian Standard Time"
 $AzureNetwork = @(
     @{
         Name = "London" 
-        AddrSpace = "192.168.10.0/24"
-        Subnet = @{ 
-            "Servers" = "192.168.10.0/25" 
-            "Clients" = "192.168.10.128/25"
-        }
+        # I define two address spaces here.
+        # I don't need to define two, but I would like to keep the clients and servers in separate subnets (for future use).
+        # With a /25 subnet for each, I don't have space for a gateway subnet. I have two options:
+        # 1) Create a /26 subnet each (59 addresses each), with a /29 for Gateway (3 addresses) followed by many more /29 subnets (because you can't carve larger subnets after that).
+        # 2) Create a separate address space for the gateway and subnet it the way you want. I am going to go with this option. 
+        # Remember: Every subnet has 2 addresses reserved for the network & broadcast. Further, Azure reserves the first 3 addresses. 
+        # This means the smallest Azure subnet you can have is /29 - which leaves 3 addresses for use. 
+        AddrSpaces = @(
+            @{
+                AddrSpace = "192.168.10.0/24"
+                Subnet = @{ 
+                    # /25 => 2^7 = 128 addresses => 192.168.x.0-127 & 192.168.x.128-255
+                    # .0 & .127 are network & broadcast. .1-.3 are reserved by Azure. So the usable range is .4-.126. 
+                    # Similarly .128 & .255 are network & broadcast. And .129-.131 are reserved by Azure. So the usable range is .132-.254. 
+                    "Servers" = "192.168.10.0/25" 
+                    "Clients" = "192.168.10.128/25"
+                }
+            },
+            @{
+                AddrSpace = "192.168.11.0/24"
+                Subnet = @{
+                    # /28 => 2^4 = 16 addresses => 192.168.x.240-255
+                    # .240 & .255 can't be used as they are network & broadcast. And .241-.243 are reserved by Azure. 
+                    # So the usable range is .244-.254. 
+                    "Gateway" = "192.168.11.240/28"
+                }
+            }
+        )
     },
     @{
         Name = "Dubai" 
-        AddrSpace = "192.168.25.0/24"
-        Subnet = @{ 
-            "Servers" = "192.168.25.0/25" 
-            "Clients" = "192.168.25.128/25"
-        }
+        AddrSpaces = @(
+            @{
+                AddrSpace = "192.168.25.0/24"
+                Subnet = @{ 
+                    "Servers" = "192.168.25.0/25" 
+                    "Clients" = "192.168.25.128/25"
+                }
+            },
+            @{
+                AddrSpace = "192.168.26.0/24"
+                Subnet = @{
+                    # /28 => 2^4 = 16 addresses => 192.168.x.240-255
+                    # .240 & .255 can't be used as they are network & broadcast. And .241-.243 are reserved by Azure. 
+                    # So the usable range is .244-.254. 
+                    "Gateway" = "192.168.26.240/28"
+                }
+            }
+        )
     },
     @{
         Name = "Muscat" 
-        AddrSpace = "192.168.50.0/24"
-        Subnet = @{ 
-            "Servers" = "192.168.50.0/25" 
-            "Clients" = "192.168.50.128/25"
-        }
+        AddrSpaces = @(
+            @{
+                AddrSpace = "192.168.50.0/24"
+                Subnet = @{ 
+                    "Servers" = "192.168.50.0/25" 
+                    "Clients" = "192.168.50.128/25"
+                }
+            },
+            @{
+                AddrSpace = "192.168.51.0/24"
+                Subnet = @{
+                    # /28 => 2^4 = 16 addresses => 192.168.x.240-255
+                    # .240 & .255 can't be used as they are network & broadcast. And .241-.243 are reserved by Azure. 
+                    # So the usable range is .244-.254. 
+                    "Gateway" = "192.168.51.240/28"
+                }
+            }
+        )
     }
 )
 
 # Here's my Azure VMs. Again, an array of hash-tables. 
+# Note: I don't do any validation, so make sure all this is accurate. 
 $AzureVMs = @(
     @{
         "Name" = "LONSDC01"
         "IPAddr" = "192.168.10.4"
         "Subnet" = "Servers"
         "AddrSpaceName" = "London"
-        "Role" = "DC"
-        "Comments" = "First DC"
+        "Role" = "Primary DC"
     },
     @{
         "Name" = "DUBSDC01"
         "IPAddr" = "192.168.25.4"
         "Subnet" = "Servers"
         "AddrSpaceName" = "Dubai"
-        "Role" = "DC"
-        "Comments" = "First DC"
+        "Role" = "DC"        
     },
     @{
         "Name" = "MUSSDC01"
@@ -170,10 +218,37 @@ New-AzureStorageAccount -StorageAccountName $StorageAccount -AffinityGroup $Azur
 # Assign storage account to the subscription
 Set-AzureSubscription -CurrentStorageAccountName $StorageAccount -SubscriptionName $AzureSubscription
 
-#foreach ($site in $VNetDCs.Keys) {
-#    $AzureVMName = $VNetDCs.$site
-#    New-AzureVMConfig -Name $AzureVMName -InstanceSize $VMInstanceSize -ImageName $VMImageName | 
-#        Add-AzureProvisioningConfig -Windows -AdminUsername $VMAdminUser -Password $VMAdminPass -TimeZone $VMTimeZone | 
-#        Set-AzureSubnet -SubnetNames "Servers" | 
-#        Set-AzureStaticVNetIP -IPAddress "10.0.0.15"
-#}
+# Create the VMs
+foreach ($VM in $AzureVMs) {    
+    $AzureVMConfig = New-AzureVMConfig -Name $VM.Name -InstanceSize $VMInstanceSize -ImageName $VMImageName | 
+        Add-AzureProvisioningConfig -Windows -AdminUsername $VMAdminUser -Password $VMAdminPass -TimeZone $VMTimeZone -NoRDPEndpoint | 
+        Set-AzureSubnet -SubnetNames $VM.Subnet
+    if ($VM.IPAddr) { 
+        if ($(Test-AzureStaticVNetIP -IPAddress $VM.IPAddr -VNetName $VM.AddrSpaceName).IsAvailable) { 
+            $AzureVMConfig | Set-AzureStaticVNetIP -IPAddress $VM.IPAddr 
+        } else {
+            Write-Host -ForegroundColor Red "You asked for a static IP to be set but it is not available."
+        }
+    }
+
+    New-AzureService -ServiceName $VM.Name -AffinityGroup $AzureAffinityGroup
+    $AzureVMConfig | New-AzureVM -ServiceName $VM.Name -VNetName $VM.AddrSpaceName
+}
+
+# Loop again, this time to get the certificates
+foreach ($VM in $AzureVMs) {    
+    $AzureVMName = $VM.Name
+    (Get-AzureCertificate -ServiceName $AzureVMName ).Data | Out-File "$env:TEMP\$AzureVMName.cer"
+    Import-Certificate -FilePath "$env:TEMP\$AzureVMName.cer" -CertStoreLocation Cert:\LocalMachine\root
+    Get-AzureWinRMUri -ServiceName $AzureVMName | ft Host,Port
+}
+
+foreach ($VM in $AzureVMs) {
+    if (($VM.Role -eq "Primary DC") -and ($VM.Comments -match "First DC")) {
+        # do first DC stuff here
+    }
+
+    if (($VM.Role -eq "DC") {
+        # do regular DC stuff here
+    }
+}
