@@ -150,51 +150,72 @@ $AzureVMs = @(
 $VNConfig = $VNetConfigXML.CreateElement("VirtualNetworkConfiguration")
 
 foreach ($site in $AzureNetwork) { 
-    $VNSElement = $VNetConfigXML.CreateElement("VirtualNetworkSite")
-    $AddrSpaceElement = $VNetConfigXML.CreateElement("AddressSpace")
-    $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
-    $SubnetsElement = $VNetConfigXML.CreateElement("Subnets")
+    # Create VirtualNetworkSite entries
+    # Create the XML entries first 
+    $VNSElement = $VNetConfigXML.CreateElement("VirtualNetworkSite")   
 
     # Set the attributes for the VirtualNetworkSites element
     $VNSElement.SetAttribute("name", $site.name)
     $VNSElement.SetAttribute("AffinityGroup", $AzureAffinityGroup)
 
+    # VirtualNetworkSite has THREE Children
+    # 1) AddressSpace
+    # Create the AddressSpace element & its children AddressPrefix elements
+    $AddrSpaceElement = $VNetConfigXML.CreateElement("AddressSpace")
+
     foreach ($addrspace in $site.AddrSpaces) {
-        $AddrSpaceElement = $VNetConfigXML.CreateElement("AddressSpace")
+        # Create a new AddressPrefix element
         $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
 
-        # Define the AddressPrefix element 
+        # Set its value
         $AddrPrefixElement.InnerText = $addrspace.AddrSpace
 
-        # Add this as a child to the Address Space element
+        # Add it as a child to the AddressSpace element
         $AddrSpaceElement.AppendChild($AddrPrefixElement)
     
     }
+
+    # 2) Subnets
+    # Create the Subnets element and child Subnet elements
+    $SubnetsElement = $VNetConfigXML.CreateElement("Subnets")
+
+    foreach ($addrspace in $site.AddrSpaces) {
+        foreach ($subnet in $addrspace.Subnet) {
+            foreach ($subnetname in $site.Subnet.Keys) {
+            # Create the Subnet element & set a name attribute
+            $SubnetElement = $VNetConfigXML.CreateElement("Subnet")
+            $SubnetElement.SetAttribute("name", $subnetname)
+
+            # Define the inner text of the AddressPrefix element
+            $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
+            $AddrPrefixElement.InnerText = $site.Subnet.$subnetname
+        
+            # Add AddressPrefix element as a child to Subnet
+            $SubnetElement.AppendChild($AddrPrefixElement)
+         
+            # Add Subnet element as a child to Subnets element
+            $SubnetsElement.AppendChild($SubnetElement)
+            }
+        }
+    }
+
+
+    # 3) Gateway (not always!)
+
+    # Add the Subnets & AddressSpace elements as children to VirtualNetworkSites
+    $VNSElement.AppendChild($AddrSpaceElement)
+    $VNSElement.AppendChild($SubnetsElement)
+    # <--- add Gateway too with logic that makes it optional
+
+
+    # create LocalNetworkSite entries
 
     
 
     
     # pull this up!
-    # Create the Subnets element and child Subnet elements
-    foreach ($subnetname in $site.Subnet.Keys) {
-        # Create the Subnet element & set a name attribute
-        $SubnetElement = $VNetConfigXML.CreateElement("Subnet")
-        $SubnetElement.SetAttribute("name", $subnetname)
 
-        # Define the inner text of the AddressPrefix element
-        $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
-        $AddrPrefixElement.InnerText = $site.Subnet.$subnetname
-        
-        # Add AddressPrefix element as a child to Subnet
-        $SubnetElement.AppendChild($AddrPrefixElement)
-         
-        # Add Subnet element as a child to Subnets element
-         $SubnetsElement.AppendChild($SubnetElement)
-     }
 
-    # Add the Subnets & AddressSpace elements as children to VirtualNetworkSites
-    $VNSElement.AppendChild($AddrSpaceElement)
-    $VNSElement.AppendChild($SubnetsElement)
 
     # Append VirtualNetworkSites to VirtualNetworkConfiguration
     $VNConfig.AppendChild($VNSElement)
