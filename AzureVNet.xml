@@ -1,45 +1,35 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <NetworkConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/ServiceHosting/2011/07/NetworkConfiguration">
   <VirtualNetworkConfiguration>
-<!--    <Dns>
-      <DnsServers>
-        <DnsServer name="LATER" IPAddress="LATER" />
-        <DnsServer name="LATER" IPAddress="LATER" />
-        <DnsServer name="LATER" IPAddress="LATER" />/>
-        <DnsServer name="LATER" IPAddress="LATER" />
-      </DnsServers>
-    </Dns>
--->
+    <Dns />
+    <LocalNetworkSites>
+      <LocalNetworkSite name="Dubai">
+        <AddressSpace>
+          <AddressPrefix>192.168.25.1/24</AddressPrefix>
+          <AddressPrefix>192.168.26.1/24</AddressPrefix>
+        </AddressSpace>
+        <VPNGatewayAddress>1.1.1.1</VPNGatewayAddress>
+      </LocalNetworkSite>
+      <LocalNetworkSite name="Muscat">
+        <AddressSpace>
+          <AddressPrefix>192.168.50.1/24</AddressPrefix>
+          <AddressPrefix>192.168.51.1/24</AddressPrefix>
+        </AddressSpace>
+        <VPNGatewayAddress>2.2.2.2</VPNGatewayAddress>
+      </LocalNetworkSite>
+      <LocalNetworkSite name="London">
+        <AddressSpace>
+          <AddressPrefix>192.168.10.1/24</AddressPrefix>
+          <AddressPrefix>192.168.11.1/24</AddressPrefix>
+        </AddressSpace>
+        <VPNGatewayAddress>3.3.3.3</VPNGatewayAddress>
+      </LocalNetworkSite>
+    </LocalNetworkSites>
     <VirtualNetworkSites>
-      <VirtualNetworkSite name="LONDON" AffinityGroup="SouthEastAsia">
-        <AddressSpace>
-          <AddressPrefix>192.168.10.0/24</AddressPrefix>
-        </AddressSpace>
-        <Subnets>
-          <Subnet name="Servers">
-            <AddressPrefix>192.168.10.0/25</AddressPrefix>
-          </Subnet>
-          <Subnet name="Clients">
-            <AddressPrefix>192.168.10.128/25</AddressPrefix>
-          </Subnet>
-        </Subnets>
-      </VirtualNetworkSite>
-      <VirtualNetworkSite name="MUSCAT" AffinityGroup="SouthEastAsia">
-        <AddressSpace>
-          <AddressPrefix>192.168.50.0/24</AddressPrefix>
-        </AddressSpace>
-        <Subnets>
-          <Subnet name="Servers">
-            <AddressPrefix>192.168.50.0/25</AddressPrefix>
-          </Subnet>
-          <Subnet name="Clients">
-            <AddressPrefix>192.168.50.128/25</AddressPrefix>
-          </Subnet>
-        </Subnets>
-      </VirtualNetworkSite>
-      <VirtualNetworkSite name="DUBAI" AffinityGroup="SouthEastAsia">
+      <VirtualNetworkSite name="Dubai" Location="Southeast Asia">
         <AddressSpace>
           <AddressPrefix>192.168.25.0/24</AddressPrefix>
+          <AddressPrefix>192.168.26.0/24</AddressPrefix>
         </AddressSpace>
         <Subnets>
           <Subnet name="Servers">
@@ -48,7 +38,65 @@
           <Subnet name="Clients">
             <AddressPrefix>192.168.25.128/25</AddressPrefix>
           </Subnet>
+          <Subnet name="GatewaySubnet">
+            <AddressPrefix>192.168.26.32/29</AddressPrefix>
+          </Subnet>
         </Subnets>
+        <Gateway>
+          <ConnectionsToLocalNetwork>
+            <LocalNetworkSiteRef name="London">
+              <Connection type="IPsec" />
+            </LocalNetworkSiteRef>
+          </ConnectionsToLocalNetwork>
+        </Gateway>
+      </VirtualNetworkSite>
+      <VirtualNetworkSite name="London" Location="Southeast Asia">
+        <AddressSpace>
+          <AddressPrefix>192.168.10.1/24</AddressPrefix>
+          <AddressPrefix>192.168.11.0/24</AddressPrefix>
+        </AddressSpace>
+        <Subnets>
+          <Subnet name="Servers">
+            <AddressPrefix>192.168.10.0/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="Clients">
+            <AddressPrefix>192.168.10.128/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="GatewaySubnet">
+            <AddressPrefix>192.168.11.32/29</AddressPrefix>
+          </Subnet>
+        </Subnets>
+        <Gateway>
+          <ConnectionsToLocalNetwork>
+            <LocalNetworkSiteRef name="Dubai">
+              <Connection type="IPsec" />
+            </LocalNetworkSiteRef>
+          </ConnectionsToLocalNetwork>
+        </Gateway>
+      </VirtualNetworkSite>
+      <VirtualNetworkSite name="Muscat" AffinityGroup="SouthEastAsia">
+        <AddressSpace>
+          <AddressPrefix>192.168.50.0/24</AddressPrefix>
+          <AddressPrefix>192.168.51.0/24</AddressPrefix>
+        </AddressSpace>
+        <Subnets>
+          <Subnet name="Servers">
+            <AddressPrefix>192.168.50.0/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="Clients">
+            <AddressPrefix>192.168.50.128/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="GatewaySubnet">
+            <AddressPrefix>192.168.51.32/29</AddressPrefix>
+          </Subnet>
+        </Subnets>
+        <Gateway>
+          <ConnectionsToLocalNetwork>
+            <LocalNetworkSiteRef name="London">
+              <Connection type="IPsec" />
+            </LocalNetworkSiteRef>
+          </ConnectionsToLocalNetwork>
+        </Gateway>
       </VirtualNetworkSite>
     </VirtualNetworkSites>
   </VirtualNetworkConfiguration>

@@ -10,9 +10,8 @@ $AzureSubscription = "Visual Studio Ultimate with MSDN"
 $StorageAccount = "rakheshlocallyredundant"
 $StorageType = "Standard_LRS"
 
-# Earlier I was pulling in the VNetConfigXML file from the same directory as this script. 
-# Not doing that any more but just leaving this behind as a reminder of those days ...
-# $VNetConfigFile = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)\AzureVNet.xml"
+# The Network config file. I expect this to be in the same folder as the script, and named AzureVNet.xml.
+$VNetConfigFile = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)\AzureVNet.xml"
 
 # Preferred location
 $AzureLocation = "SouthEast Asia" 
@@ -30,37 +29,7 @@ $VMAdminUser = Read-Host -Prompt ("VM Admin Username")
 $VMAdminPass = Read-Host -Prompt ("VM Admin Password")
 $VMTimeZone = "Arabian Standard Time"
 
-# Here's my Azure Network. It's an array of hash-tables defining each site (each *address space*, really). 
-# NOTE: I don't do any validation of this whatsoever! If you make mistakes it will break the script/ your Azure VMs/ your Azure network. 
-# TODO: Get this as a JSON file input perhaps? Looks like one anyway.
-$AzureNetwork = @(
-    @{
-        Name = "London" 
-        AddrSpace = "192.168.10.0/24"
-        Subnet = @{ 
-            "Servers" = "192.168.10.0/25" 
-            "Clients" = "192.168.10.128/25"
-        }
-    },
-    @{
-        Name = "Dubai" 
-        AddrSpace = "192.168.25.0/24"
-        Subnet = @{ 
-            "Servers" = "192.168.25.0/25" 
-            "Clients" = "192.168.25.128/25"
-        }
-    },
-    @{
-        Name = "Muscat" 
-        AddrSpace = "192.168.50.0/24"
-        Subnet = @{ 
-            "Servers" = "192.168.50.0/25" 
-            "Clients" = "192.168.50.128/25"
-        }
-    }
-)
-
-# Here's my Azure VMs. Again, an array of hash-tables. 
+# Here are my Azure VMs.
 $AzureVMs = @(
     @{
         "Name" = "LONSDC01"
@@ -89,91 +58,57 @@ $AzureVMs = @(
 
 # -x-
 
-# Create the XML file on the fly
-# Start with the skeleton. Thanks to http://blogs.msdn.com/b/powershell/archive/2007/05/29/using-powershell-to-generate-xml-documents.aspx
-# for reminding me I can use a here-string for XML. Previously I was reading this from a separate file
-[xml]$VNetConfigXML = @"
-<?xml version="1.0" encoding="utf-8"?>
-<NetworkConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/ServiceHosting/2011/07/NetworkConfiguration">
-</NetworkConfiguration>
-"@
-
-# Define each of the elements. See my blog post for an explanation: http://rakhesh.com/powershell/a-brief-intro-to-xml-powershell/
-$VNConfig = $VNetConfigXML.CreateElement("VirtualNetworkConfiguration")
-
-foreach ($site in $AzureNetwork) { 
-    $VNSElement = $VNetConfigXML.CreateElement("VirtualNetworkSite")
-    $AddrSpaceElement = $VNetConfigXML.CreateElement("AddressSpace")
-    $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
-    $SubnetsElement = $VNetConfigXML.CreateElement("Subnets")
-
-    # Set the attributes for the VirtualNetworkSites element
-    $VNSElement.SetAttribute("name", $site.name)
-    $VNSElement.SetAttribute("AffinityGroup", $AzureAffinityGroup)
-
-    # Define the AddressPrefix element 
-    $AddrPrefixElement.InnerText = $site.AddrSpace
-
-    # Add this as a child to the Address Space element
-    $AddrSpaceElement.AppendChild($AddrPrefixElement)
-
-    # Create the Subnets element and child Subnet elements
-    foreach ($subnetname in $site.Subnet.Keys) {
-        # Create the Subnet element & set a name attribute
-        $SubnetElement = $VNetConfigXML.CreateElement("Subnet")
-        $SubnetElement.SetAttribute("name", $subnetname)
-
-        # Define the inner text of the AddressPrefix element
-        $AddrPrefixElement = $VNetConfigXML.CreateElement("AddressPrefix")
-        $AddrPrefixElement.InnerText = $site.Subnet.$subnetname
-        
-        # Add AddressPrefix element as a child to Subnet
-        $SubnetElement.AppendChild($AddrPrefixElement)
-         
-        # Add Subnet element as a child to Subnets element
-         $SubnetsElement.AppendChild($SubnetElement)
-     }
-
-    # Add the Subnets & AddressSpace elements as children to VirtualNetworkSites
-    $VNSElement.AppendChild($AddrSpaceElement)
-    $VNSElement.AppendChild($SubnetsElement)
-
-    # Append VirtualNetworkSites to VirtualNetworkConfiguration
-    $VNConfig.AppendChild($VNSElement)
-}
-
-# Append VirtualNetworkConfiguration to the root
-$VNetConfigXML.NetworkConfiguration.AppendChild($VNConfig)
-
-# Save this as an XML file in a temp location
-$VNetConfigFile = "$env:TEMP\$(get-random).xml"
-$VNetConfigXML.Save($VNetConfigFile)
-
-# -x- 
-
 # Add your Azure account
 #TODO: What happens if this fails?
 Add-AzureAccount
 
 # Create an affinity group
-# TODO: If affinity group already exists then?
-New-AzureAffinityGroup -Name $AzureAffinityGroup -Description "$AzureLocation affinity group" -Location $AzureLocation
+New-AzureAffinityGroup -Name $AzureAffinityGroup -Description "$AzureLocation affinity group" -Location $AzureLocation -ErrorAction SilentlyContinue
 
-# Import VNet config. This will over-write whatever exists. Also, remove the XML file once done. 
+# Import VNet config. 
 Set-AzureVNetConfig -ConfigurationPath $VNetConfigFile
-Remove-Item $VNetConfigFile -Force
 
 # Create storage account.
-# TODO: Again, what if it already exists? 
-New-AzureStorageAccount -StorageAccountName $StorageAccount -AffinityGroup $AzureAffinityGroup -Type $StorageType
+New-AzureStorageAccount -StorageAccountName $StorageAccount -AffinityGroup $AzureAffinityGroup -Type $StorageType -ErrorAction SilentlyContinue
 
 # Assign storage account to the subscription
 Set-AzureSubscription -CurrentStorageAccountName $StorageAccount -SubscriptionName $AzureSubscription
 
-#foreach ($site in $VNetDCs.Keys) {
-#    $AzureVMName = $VNetDCs.$site
-#    New-AzureVMConfig -Name $AzureVMName -InstanceSize $VMInstanceSize -ImageName $VMImageName | 
-#        Add-AzureProvisioningConfig -Windows -AdminUsername $VMAdminUser -Password $VMAdminPass -TimeZone $VMTimeZone | 
-#        Set-AzureSubnet -SubnetNames "Servers" | 
-#        Set-AzureStaticVNetIP -IPAddress "10.0.0.15"
-#}
+# Create the VMs
+foreach ($VM in $AzureVMs) {
+    $AzureVMConfig = New-AzureVMConfig -Name $VM.Name -InstanceSize $VMInstanceSize -ImageName $VMImageName |
+    Add-AzureProvisioningConfig -Windows -AdminUsername $VMAdminUser -Password $VMAdminPass -TimeZone $VMTimeZone -NoRDPEndpoint |
+    Set-AzureSubnet -SubnetNames $VM.Subnet
+    
+    if ($VM.IPAddr) {
+        if ($(Test-AzureStaticVNetIP -IPAddress $VM.IPAddr -VNetName $VM.AddrSpaceName).IsAvailable) {
+            $AzureVMConfig | Set-AzureStaticVNetIP -IPAddress $VM.IPAddr
+        } else {
+            Write-Host -ForegroundColor Red "You asked for a static IP to be set but it is not available."
+        }
+    }
+
+    New-AzureService -ServiceName $VM.Name -AffinityGroup $AzureAffinityGroup
+    $AzureVMConfig | New-AzureVM -ServiceName $VM.Name -VNetName $VM.AddrSpaceName
+}
+
+# Loop again, this time to get the certificates
+foreach ($VM in $AzureVMs) {
+    $AzureVMName = $VM.Name
+    (Get-AzureCertificate -ServiceName $AzureVMName ).Data | Out-File "$env:TEMP\$AzureVMName.cer"
+    Import-Certificate -FilePath "$env:TEMP\$AzureVMName.cer" -CertStoreLocation Cert:\LocalMachine\root
+    Get-AzureWinRMUri -ServiceName $AzureVMName | ft Host,Port
+}
+
+foreach ($VM in $AzureVMs) {
+    if (($VM.Role -eq "Primary DC") -and ($VM.Comments -match "First DC")) {
+    # do first DC stuff here
+    
+    }
+
+if (($VM.Role -eq "DC") {
+    # do regular DC stuff here
+
+    }
+
+}
