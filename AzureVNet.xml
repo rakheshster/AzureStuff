@@ -3,30 +3,79 @@
   <VirtualNetworkConfiguration>
     <Dns />
     <LocalNetworkSites>
+    <!-- 
+    LocalNetworkSites are same as the VirtualNetworkSites below, but presented as Local so I can do a S2S VPN between them 
+    The VPNGatewayAddress entries are dummy for now. They will be changed once the network & Gateway are created.
+    -->
+      <LocalNetworkSite name="London">
+        <AddressSpace>
+          <AddressPrefix>192.168.10.1/24</AddressPrefix>
+          <AddressPrefix>192.168.11.1/24</AddressPrefix>
+        </AddressSpace>
+        <VPNGatewayAddress>1.1.1.1</VPNGatewayAddress>
+      </LocalNetworkSite>
       <LocalNetworkSite name="Dubai">
         <AddressSpace>
           <AddressPrefix>192.168.25.1/24</AddressPrefix>
           <AddressPrefix>192.168.26.1/24</AddressPrefix>
         </AddressSpace>
-        <VPNGatewayAddress>1.1.1.1</VPNGatewayAddress>
+        <VPNGatewayAddress>2.2.2.2</VPNGatewayAddress>
       </LocalNetworkSite>
       <LocalNetworkSite name="Muscat">
         <AddressSpace>
           <AddressPrefix>192.168.50.1/24</AddressPrefix>
           <AddressPrefix>192.168.51.1/24</AddressPrefix>
         </AddressSpace>
-        <VPNGatewayAddress>2.2.2.2</VPNGatewayAddress>
-      </LocalNetworkSite>
-      <LocalNetworkSite name="London">
-        <AddressSpace>
-          <AddressPrefix>192.168.10.1/24</AddressPrefix>
-          <AddressPrefix>192.168.11.1/24</AddressPrefix>
-        </AddressSpace>
         <VPNGatewayAddress>3.3.3.3</VPNGatewayAddress>
       </LocalNetworkSite>
     </LocalNetworkSites>
     <VirtualNetworkSites>
-      <VirtualNetworkSite name="Dubai" Location="Southeast Asia">
+    <!-- 
+    I define two address spaces here. I don't need to define two, but I would like to keep the Clients and Servers in separate subnets (for future use).
+    With a /25 subnet for each, this means I don't have space for a Gateway subnet. I have two options:
+    1) Create a /26 subnet each (59 addresses each), with a /29 for Gateway (3 addresses) followed by many more /29 subnets (because you can't carve larger subnets after that).
+    2) Create a separate address space for the gateway and subnet it the way you want. I am going to go with this option.
+    Remember: Every subnet has 2 addresses reserved for the network & broadcast. Further, Azure reserves the first 3 addresses.
+    This means the smallest Azure subnet you can have is /29 - which leaves 3 addresses for use. 
+    -->
+      <VirtualNetworkSite name="London" AffinityGroup="SouthEastAsia">
+        <AddressSpace>
+          <AddressPrefix>192.168.10.1/24</AddressPrefix>
+          <AddressPrefix>192.168.11.0/24</AddressPrefix>
+        </AddressSpace>
+        <Subnets>
+        <!--
+        /25 => 2^7 = 128 addresses => 192.168.x.0-127 & 192.168.x.128-255
+        .0 & .127 are network & broadcast. .1-.3 are reserved by Azure. So the usable range is .4-.126.
+        Similarly .128 & .255 are network & broadcast. And .129-.131 are reserved by Azure. So the usable range is .132-.254.
+        -->
+          <Subnet name="Servers">
+            <AddressPrefix>192.168.10.0/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="Clients">
+            <AddressPrefix>192.168.10.128/25</AddressPrefix>
+          </Subnet>
+          <!-- 
+          /28 => 2^4 = 16 addresses => 192.168.x.240-255
+          .240 & .255 can't be used as they are network & broadcast. And .241-.243 are reserved by Azure.
+          So the usable range is .244-.254. 
+          -->
+          <Subnet name="GatewaySubnet">
+            <AddressPrefix>192.168.11.240/28</AddressPrefix>
+          </Subnet>
+        </Subnets>
+        <Gateway>
+          <ConnectionsToLocalNetwork>
+            <LocalNetworkSiteRef name="Dubai">
+              <Connection type="IPsec" />
+            </LocalNetworkSiteRef>
+            <LocalNetworkSiteRef name="Muscat">
+              <Connection type="IPsec" />
+            </LocalNetworkSiteRef>
+          </ConnectionsToLocalNetwork>
+        </Gateway>
+      </VirtualNetworkSite>
+      <VirtualNetworkSite name="Dubai" AffinityGroup="SouthEastAsia">
         <AddressSpace>
           <AddressPrefix>192.168.25.0/24</AddressPrefix>
           <AddressPrefix>192.168.26.0/24</AddressPrefix>
@@ -39,36 +88,12 @@
             <AddressPrefix>192.168.25.128/25</AddressPrefix>
           </Subnet>
           <Subnet name="GatewaySubnet">
-            <AddressPrefix>192.168.26.32/29</AddressPrefix>
+            <AddressPrefix>192.168.26.240/28</AddressPrefix>
           </Subnet>
         </Subnets>
         <Gateway>
           <ConnectionsToLocalNetwork>
             <LocalNetworkSiteRef name="London">
-              <Connection type="IPsec" />
-            </LocalNetworkSiteRef>
-          </ConnectionsToLocalNetwork>
-        </Gateway>
-      </VirtualNetworkSite>
-      <VirtualNetworkSite name="London" Location="Southeast Asia">
-        <AddressSpace>
-          <AddressPrefix>192.168.10.1/24</AddressPrefix>
-          <AddressPrefix>192.168.11.0/24</AddressPrefix>
-        </AddressSpace>
-        <Subnets>
-          <Subnet name="Servers">
-            <AddressPrefix>192.168.10.0/25</AddressPrefix>
-          </Subnet>
-          <Subnet name="Clients">
-            <AddressPrefix>192.168.10.128/25</AddressPrefix>
-          </Subnet>
-          <Subnet name="GatewaySubnet">
-            <AddressPrefix>192.168.11.32/29</AddressPrefix>
-          </Subnet>
-        </Subnets>
-        <Gateway>
-          <ConnectionsToLocalNetwork>
-            <LocalNetworkSiteRef name="Dubai">
               <Connection type="IPsec" />
             </LocalNetworkSiteRef>
           </ConnectionsToLocalNetwork>
@@ -87,7 +112,7 @@
             <AddressPrefix>192.168.50.128/25</AddressPrefix>
           </Subnet>
           <Subnet name="GatewaySubnet">
-            <AddressPrefix>192.168.51.32/29</AddressPrefix>
+            <AddressPrefix>192.168.51.240/28</AddressPrefix>
           </Subnet>
         </Subnets>
         <Gateway>
