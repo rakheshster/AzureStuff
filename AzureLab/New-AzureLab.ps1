@@ -24,11 +24,14 @@ $AzureAffinityGroup = $AzureLocation -replace "\s*",""
 # Select a value via: `Get-AzureVMImage | ?{ $_.Label -match "^Windows Server 2012" } | fl ImageName,Label`
 $VMImageName = "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd"
 
+$VMTimeZone = "Arabian Standard Time"
+
 # VM size and other details
 $VMInstanceSize = "Basic_A1" 
 $VMAdminUser = Read-Host -Prompt ("VM Admin Username")
-$VMAdminPass = Read-Host -Prompt ("VM Admin Password (will be shown as you type)")
-$VMTimeZone = "Arabian Standard Time"
+$VMAdminPass = "Password"
+# Password complexity check
+while (($VMAdminPass.length -lt 8) -or ($VMAdminPass -notmatch "[~!#$%^&*()`]") -or ($VMAdminPass -notmatch "[0-9]")) { $VMAdminPass = Read-Host -Prompt ("VM Admin Password (will be shown as you type)") }
 
 # Thanks to http://blogs.msdn.com/b/koteshb/archive/2010/02/13/powershell-creating-a-pscredential-object.aspx
 # I use this object later
@@ -132,7 +135,7 @@ Set-AzureSubscription -CurrentStorageAccountName $StorageAccount -SubscriptionNa
 # Create the VMs
 Write-Host -ForegroundColor Green "Creating VMs"
 foreach ($VM in $AzureVMs) {
-    Write-Host "`t $($VM.Name)"
+    Write-Host -ForegroundColor Green "`t $($VM.Name)"
     $AzureVMConfig = New-AzureVMConfig -Name $VM.Name -InstanceSize $VMInstanceSize -ImageName $VMImageName |
         Add-AzureProvisioningConfig -Windows -AdminUsername $VMAdminUser -Password $VMAdminPass -TimeZone $VMTimeZone -NoRDPEndpoint |
         Set-AzureSubnet -SubnetNames $VM.Subnet
@@ -146,16 +149,16 @@ foreach ($VM in $AzureVMs) {
         }
     }
 
-    Write-Host "`t`t Creating Service"
-    New-AzureService -ServiceName $VM.Name -AffinityGroup $AzureAffinityGroup
-    Write-Host "`t`t Provisioning VM"
+    Write-Host -ForegroundColor Green "`t`t Creating Service"
+    New-AzureService -ServiceName $VM.Name -AffinityGroup $AzureAffinityGroup -ErrorAction SilentlyContinue
+    Write-Host -ForegroundColor Green "`t`t Provisioning VM"
     $AzureVMConfig | New-AzureVM -ServiceName $VM.Name -VNetName $VM.AddrSpaceName
 }
 
 # Loop again, this time to get the certificates
 Write-Host -ForegroundColor Green "Adding certificates to local store"
 foreach ($VM in $AzureVMs) {
-    Write-Host "`t $($VM.Name)"
+    Write-Host -ForegroundColor Green "`t $($VM.Name)"
     $AzureVMName = $VM.Name
     (Get-AzureCertificate -ServiceName $AzureVMName).Data | Out-File "$env:TEMP\$AzureVMName.cer"
     Import-Certificate -FilePath "$env:TEMP\$AzureVMName.cer" -CertStoreLocation Cert:\LocalMachine\root
@@ -165,7 +168,7 @@ foreach ($VM in $AzureVMs) {
 # Adding roles
 Write-Host -ForegroundColor Green "Adding roles"
 foreach ($VM in $AzureVMs) {
-    Write-Host "`t $($VM.Name)"
+    Write-Host -ForegroundColor Green "`t $($VM.Name)"
 
     if ($VM.Role.Contains("Primary DC")) {
     # Do first DC stuff here
