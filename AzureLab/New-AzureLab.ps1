@@ -1,4 +1,13 @@
-﻿# Import Azure module
+﻿# This script must be run with admin rights, if not do it for the user
+# Thanks to http://stackoverflow.com/a/11440595 for the snippet below
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+    Write-Host -ForegroundColor Yellow "Launching a new window to run this script with admin rights ..."
+    $Arguments = "& '" + $MyInvocation.mycommand.definition + "'"
+    Start-Process powershell -Verb runAs -ArgumentList $Arguments
+    break
+}
+
+# Import Azure module
 # TODO: Put some error logic in here if the Azure module isn't available ...
 Import-Module Azure
 
@@ -31,7 +40,9 @@ $VMInstanceSize = "Basic_A1"
 $VMAdminUser = Read-Host -Prompt ("VM Admin Username")
 $VMAdminPass = "Password"
 # Password complexity check
-while (($VMAdminPass.length -lt 8) -or ($VMAdminPass -notmatch "[~!#$%^&*()`]") -or ($VMAdminPass -notmatch "[0-9]")) { $VMAdminPass = Read-Host -Prompt ("VM Admin Password (will be shown as you type)") }
+while (($VMAdminPass.length -lt 8) -or ($VMAdminPass -notmatch "[~!#$%^&*()`]") -or ($VMAdminPass -notmatch "[0-9]")) { 
+    $VMAdminPass = Read-Host -Prompt ("VM Admin Password (will be shown as you type; min 8 chars including 1 special & 1 num)") 
+}
 
 # Thanks to http://blogs.msdn.com/b/koteshb/archive/2010/02/13/powershell-creating-a-pscredential-object.aspx
 # I use this object later
@@ -83,6 +94,9 @@ Set-AzureVNetConfig -ConfigurationPath $VNetConfigFile
 # TODO: Is this correct?
 if ($Error) { Write-Error "Something went wrong here!"; break }
 
+Write-Host -ForegroundColor Green "Waiting 30 seconds ..."
+Start-Sleep -Seconds 30
+
 # If $VNetSite has a GatewaySites property, then initialize gateway
 [bool]$GatewayPresent = 0 # false, assume no Gateway present
 Write-Host -ForegroundColor Green "Initializing Gateways for sites that require it"
@@ -96,7 +110,7 @@ foreach ($VNetSite in $(Get-AzureVNetSite)) {
 }
 
 if ($GatewayPresent) {
-    # Once the gatewys are up and running get the public IP address & modify the XML file
+    # Once the gateways are up and running get the public IP address & modify the XML file
     # But first read the XML file so we can change it
     [xml]$XMLFile = Get-Content $VNetConfigFile
     foreach ($VNetSite in $(Get-AzureVNetSite)) {
@@ -172,28 +186,29 @@ foreach ($VM in $AzureVMs) {
 
     if ($VM.Role.Contains("Primary DC")) {
     # Do first DC stuff here
-    Write-Host "`t`t This is the first DC in the domain/ forest"
+    Write-Host -ForegroundColor Green "`t`t This is the first DC in the domain/ forest"
     $InstallAD = {
-        Write-Host "`t`t Installing role"
-        Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Restart
-        $ADPassword = Read-Host -Prompt "`t`t AD Password? (will be shown on screen)"
-        $ADPasswordSS = ConvertTo-SecureString -String $ADPassword -AsPlainText -Force
+        Write-Host -ForegroundColor Green "`t`t Installing role"
+        #Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Restart
+        #$ADPassword = Read-Host -Prompt "`t`t AD Password? (will be shown on screen)"
+        #$ADPasswordSS = ConvertTo-SecureString -String $ADPassword -AsPlainText -Force
         
-        Write-Host "`t`t Promoting to DC"
-        Install-ADDSForest -DomainName AzureLab.local -DomainNetbiosName AzureLab -SafeModeAdministratorPassword $ADPasswordSS -DomainMode Win2012R2 -ForestMode Win2012R2 -InstallDns -NoDnsOnNetwork -Force
+        Write-Host -ForegroundColor Green "`t`t Promoting to DC"
+        Install-ADDSForest -DomainName AzureLab.local -DomainNetbiosName AzureLab -DomainMode Win2012R2 -ForestMode Win2012R2 -InstallDns -NoDnsOnNetwork -Force
         }
     
     Invoke-Command -ConnectionUri $(Get-AzureWinRMUri -ServiceName $VM.Name -Name $VM.Name) -Credential $VMCredObject -ScriptBlock $InstallAD
+    Write-Host -ForegroundColor Green "The machine will reboot and we will lose connection"
     }
 
 if ($VM.Role.Contains("DC")) {
     # Do regular DC stuff here
-    Write-Host "`t`t This is a regular DC+DNS"
+    Write-Host -ForegroundColor Green "`t`t This is a regular DC+DNS"
     $InstallAD = {
-        Write-Host "`t`t Installing role"
+        Write-Host -ForegroundColor Green "`t`t Installing role"
         Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Restart
         
-        Write-Host "`t`t Promoting to DC"
+        Write-Host -ForegroundColor Green "`t`t Promoting to DC"
         Install-ADDSDomainController -InstallDns -DomainName AzureLab.local
         }
     

@@ -1,7 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <NetworkConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/ServiceHosting/2011/07/NetworkConfiguration">
   <VirtualNetworkConfiguration>
-    <Dns />
+    <Dns>
+      <DnsServers>
+        <!-- These should preferrably match the VMs you are defining. No validation is done. -->
+        <DnsServer name="LONSDC01" IPAddress="192.168.10.4"/>
+        <DnsServer name="DUBSDC01" IPAddress="192.168.25.4"/>
+        <DnsServer name="MUSSDC01" IPAddress="192.168.50.4"/>
+      </DnsServers>
+    </Dns>
     <LocalNetworkSites>
     <!-- 
     LocalNetworkSites are same as the VirtualNetworkSites below, but presented as Local so I can do a S2S VPN between them 
