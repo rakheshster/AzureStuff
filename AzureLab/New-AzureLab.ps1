@@ -19,10 +19,6 @@ $AzureSubscription = "Visual Studio Ultimate with MSDN"
 $StorageAccount = "rakheshlocallyredundant"
 $StorageType = "Standard_LRS"
 
-# The Network config file. 
-$VNetConfigFile = Get-Random
-while (!(Test-Path $VNetConfigFile)) { $VNetConfigFile = Read-Host -Prompt ("Enter full path to XML file containing VNet config") }
-
 # Preferred location
 $AzureLocation = "SouthEast Asia" 
 
@@ -54,23 +50,35 @@ $AzureVMs = @(
     @{
         "Name" = "LONSDC01"
         "IPAddr" = "192.168.10.4"
-        "Subnet" = "Servers"
-        "AddrSpaceName" = "London"
+        "AddrSpaceName" = "RAXNET"
+        "Subnet" = "LondonServers"
         "Role" = @("Primary DC")
+        # older entries, remove sometime. in fact, TODO: make this object be an input to the script. 
+        #"Subnet" = "Servers"
+        #"AddrSpaceName" = "London"
+        
     },
     @{
         "Name" = "DUBSDC01"
         "IPAddr" = "192.168.25.4"
-        "Subnet" = "Servers"
-        "AddrSpaceName" = "Dubai"
+        "AddrSpaceName" = "RAXNET"
+        "Subnet" = "DubaiServers"
         "Role" = @("DC")
+        # older entries, remove sometime. in fact, TODO: make this object be an input to the script. 
+        #"Subnet" = "Servers"
+        #"AddrSpaceName" = "Dubai"
+        
     },
     @{
         "Name" = "MUSSDC01"
         "IPAddr" = "192.168.50.4"
-        "Subnet" = "Servers"
-        "AddrSpaceName" = "Muscat"
+        "AddrSpaceName" = "RAXNET"
+        "Subnet" = "MuscatServers"
         "Role" = @("DC")
+        # older entries, remove sometime. in fact, TODO: make this object be an input to the script. 
+        #"Subnet" = "Servers"
+        #"AddrSpaceName" = "Muscat"
+        
     }
 )
 
@@ -78,65 +86,12 @@ $AzureVMs = @(
 
 # Add your Azure account
 #TODO: What happens if this fails?
+Write-Host -ForegroundColor Green "Launching new window to get Azure credentials"
 Add-AzureAccount
 
 # Create an affinity group
 Write-Host -ForegroundColor Green "Creating Affinity Group: $AzureAffinityGroup"
 New-AzureAffinityGroup -Name $AzureAffinityGroup -Description "$AzureLocation affinity group" -Location $AzureLocation -ErrorAction SilentlyContinue
-
-# Clear an existing errors
-$Error.Clear()
-
-# Import VNet config. This will overwrite the existing config. 
-Write-Host -ForegroundColor Green "Initializing network config from $VNetConfigFile"
-Set-AzureVNetConfig -ConfigurationPath $VNetConfigFile
-
-# TODO: Is this correct?
-if ($Error) { Write-Error "Something went wrong here!"; break }
-
-Write-Host -ForegroundColor Green "Waiting 30 seconds ..."
-Start-Sleep -Seconds 30
-
-# If $VNetSite has a GatewaySites property, then initialize gateway
-[bool]$GatewayPresent = 0 # false, assume no Gateway present
-Write-Host -ForegroundColor Green "Initializing Gateways for sites that require it"
-Write-Host -ForegroundColor Green "Remember: Gateways are charged per gateway per hour!"
-foreach ($VNetSite in $(Get-AzureVNetSite)) {
-    if ($VNetSite.GatewaySites) { 
-        Write-Host -ForegroundColor Green "`t $($VNetSite.Name)"
-        New-AzureVNetGateway -VNetName $VNetSite.Name -GatewayType DynamicRouting 
-        $GatewayPresent = 1 # yes there is a Gateway present
-    }
-}
-
-if ($GatewayPresent) {
-    # Once the gateways are up and running get the public IP address & modify the XML file
-    # But first read the XML file so we can change it
-    [xml]$XMLFile = Get-Content $VNetConfigFile
-    foreach ($VNetSite in $(Get-AzureVNetSite)) {
-        Write-Host -ForegroundColor Green "Getting public IP address of gateway in $($VNetSite.Name)"
-        ($XMLFile.NetworkConfiguration.VirtualNetworkConfiguration.LocalNetworkSites.LocalNetworkSite | ?{ $_.name -eq $VNetSite.Name}).VPNGatewayAddress = (Get-AzureVNetGateway -VNetName $VNetSite.Name).VIPAddress
-    }
-
-    # Save XML file
-    $TempVNetFile = "$env:TEMP\$(get-random).xml"
-    $XMLFile.Save($TempVNetFile)
-
-    # Re-read it
-    Set-AzureVNetConfig -ConfigurationPath $TempVNetFile
-    Remove-Item -Force $TempVNetFile
-
-    $GatewayKey = Get-Random
-    Write-Host -ForegroundColor Green "Turning off encryption for the tunnels & setting the shared key"
-    foreach ($VNetSite in $(Get-AzureVNetSite)) {
-        foreach ($LocalSite in $VNetSite.GatewaySites) {
-            Write-Host -ForegroundColor Green "`t Shared key: $($VnetSite.Name) <--> $($LocalSite.Name)"
-            Set-AzureVNetGatewayKey -VNetName $VNetSite.Name -SharedKey $GatewayKey -LocalNetworkSiteName $LocalSite.Name
-            Write-Host -ForegroundColor Green "`t Encryption: $($VnetSite.Name) <--> $($LocalSite.Name)"
-            Set-AzureVNetGatewayIPsecParameters -VNetName $VNetSite.Name -EncryptionType NoEncryption -LocalNetworkSiteName $LocalSite.Name
-        }
-    }
-}
 
 # Create storage account.
 Write-Host -ForegroundColor Green "Creating Storage Account $StorageAccount"
@@ -149,7 +104,7 @@ Set-AzureSubscription -CurrentStorageAccountName $StorageAccount -SubscriptionNa
 # Create the VMs
 Write-Host -ForegroundColor Green "Creating VMs"
 foreach ($VM in $AzureVMs) {
-    Write-Host -ForegroundColor Green "`t $($VM.Name)"
+    Write-Host -ForegroundColor Green "* $($VM.Name)"
     $AzureVMConfig = New-AzureVMConfig -Name $VM.Name -InstanceSize $VMInstanceSize -ImageName $VMImageName |
         Add-AzureProvisioningConfig -Windows -AdminUsername $VMAdminUser -Password $VMAdminPass -TimeZone $VMTimeZone -NoRDPEndpoint |
         Set-AzureSubnet -SubnetNames $VM.Subnet
@@ -159,20 +114,20 @@ foreach ($VM in $AzureVMs) {
             $AzureVMConfig | Set-AzureStaticVNetIP -IPAddress $VM.IPAddr
             Write-Host -ForegroundColor Green "`t Static IP $($VM.IPAddr) set"
         } else {
-            Write-Error "`t`t You asked for a Static IP $($VM.IPAddr) to be set but it is not available."
+            Write-Error "`t You asked for a Static IP $($VM.IPAddr) to be set but it is not available."
         }
     }
 
-    Write-Host -ForegroundColor Green "`t`t Creating Service"
+    Write-Host -ForegroundColor Green "`t Creating Service"
     New-AzureService -ServiceName $VM.Name -AffinityGroup $AzureAffinityGroup -ErrorAction SilentlyContinue
-    Write-Host -ForegroundColor Green "`t`t Provisioning VM"
+    Write-Host -ForegroundColor Green "`t Provisioning VM"
     $AzureVMConfig | New-AzureVM -ServiceName $VM.Name -VNetName $VM.AddrSpaceName
 }
 
 # Loop again, this time to get the certificates
 Write-Host -ForegroundColor Green "Adding certificates to local store"
 foreach ($VM in $AzureVMs) {
-    Write-Host -ForegroundColor Green "`t $($VM.Name)"
+    Write-Host -ForegroundColor Green "* $($VM.Name)"
     $AzureVMName = $VM.Name
     (Get-AzureCertificate -ServiceName $AzureVMName).Data | Out-File "$env:TEMP\$AzureVMName.cer"
     Import-Certificate -FilePath "$env:TEMP\$AzureVMName.cer" -CertStoreLocation Cert:\LocalMachine\root
@@ -182,33 +137,33 @@ foreach ($VM in $AzureVMs) {
 # Adding roles
 Write-Host -ForegroundColor Green "Adding roles"
 foreach ($VM in $AzureVMs) {
-    Write-Host -ForegroundColor Green "`t $($VM.Name)"
+    Write-Host -ForegroundColor Green "* $($VM.Name)"
 
     if ($VM.Role.Contains("Primary DC")) {
     # Do first DC stuff here
-    Write-Host -ForegroundColor Green "`t`t This is the first DC in the domain/ forest"
+    Write-Host -ForegroundColor Green "`t This is the first DC in the domain/ forest"
     $InstallAD = {
-        Write-Host -ForegroundColor Green "`t`t Installing role"
-        #Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Restart
+        Write-Host -ForegroundColor Green "`t Installing role"
+        Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Restart
         #$ADPassword = Read-Host -Prompt "`t`t AD Password? (will be shown on screen)"
         #$ADPasswordSS = ConvertTo-SecureString -String $ADPassword -AsPlainText -Force
         
-        Write-Host -ForegroundColor Green "`t`t Promoting to DC"
+        Write-Host -ForegroundColor Green "`t Promoting to DC"
         Install-ADDSForest -DomainName AzureLab.local -DomainNetbiosName AzureLab -DomainMode Win2012R2 -ForestMode Win2012R2 -InstallDns -NoDnsOnNetwork -Force
         }
     
     Invoke-Command -ConnectionUri $(Get-AzureWinRMUri -ServiceName $VM.Name -Name $VM.Name) -Credential $VMCredObject -ScriptBlock $InstallAD
-    Write-Host -ForegroundColor Green "The machine will reboot and we will lose connection"
+    Write-Host -ForegroundColor Green "`t The machine may reboot and we will lose connection - don't panic!"
     }
 
 if ($VM.Role.Contains("DC")) {
     # Do regular DC stuff here
-    Write-Host -ForegroundColor Green "`t`t This is a regular DC+DNS"
+    Write-Host -ForegroundColor Green "`t This is a regular DC+DNS"
     $InstallAD = {
-        Write-Host -ForegroundColor Green "`t`t Installing role"
+        Write-Host -ForegroundColor Green "`t Installing role"
         Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools -Restart
         
-        Write-Host -ForegroundColor Green "`t`t Promoting to DC"
+        Write-Host -ForegroundColor Green "`t Promoting to DC"
         Install-ADDSDomainController -InstallDns -DomainName AzureLab.local
         }
     

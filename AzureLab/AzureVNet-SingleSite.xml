@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<NetworkConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/ServiceHosting/2011/07/NetworkConfiguration">
+  <VirtualNetworkConfiguration>
+    <Dns>
+      <DnsServers>
+        <!-- These should preferrably match the VMs you are defining. No validation is done. -->
+        <DnsServer name="LONSDC01" IPAddress="192.168.10.4"/>
+        <DnsServer name="DUBSDC01" IPAddress="192.168.25.4"/>
+        <DnsServer name="MUSSDC01" IPAddress="192.168.50.4"/>
+      </DnsServers>
+    </Dns>
+    <VirtualNetworkSites>
+      <VirtualNetworkSite name="RAXNET" AffinityGroup="SouthEastAsia">
+        <AddressSpace>
+          <AddressPrefix>192.168.10.0/24</AddressPrefix>
+          <AddressPrefix>192.168.25.0/24</AddressPrefix>
+          <AddressPrefix>192.168.50.0/24</AddressPrefix>
+          <!-- Uncomment if using Gateway 
+          <AddressPrefix>192.168.90.0/24</AddressPrefix>
+          -->
+        </AddressSpace>
+        <Subnets>
+          <Subnet name="LondonServers">
+            <AddressPrefix>192.168.10.0/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="LondonClients">
+            <AddressPrefix>192.168.10.128/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="DubaiServers">
+            <AddressPrefix>192.168.25.0/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="DubaiClients">
+            <AddressPrefix>192.168.25.128/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="MuscatServers">
+            <AddressPrefix>192.168.50.0/25</AddressPrefix>
+          </Subnet>
+          <Subnet name="MuscatClients">
+            <AddressPrefix>192.168.50.128/25</AddressPrefix>
+          </Subnet>
+          <!-- Uncomment if using Gateway 
+          <Subnet name="GatewaySubnet">
+            <AddressPrefix>192.168.90.3/29</AddressPrefix>
+          </Subnet>
+          -->
+        </Subnets>          
+        <!-- Uncomment if using Gateway 
+        <Gateway>
+          <VPNClientAddressPool>
+            <AddressPrefix>10.0.0.0/24</AddressPrefix>
+          </VPNClientAddressPool>
+        <ConnectionsToLocalNetwork/>
+        </Gateway>
+        -->
+      </VirtualNetworkSite>
+    </VirtualNetworkSites>
+  </VirtualNetworkConfiguration>
+</NetworkConfiguration>
