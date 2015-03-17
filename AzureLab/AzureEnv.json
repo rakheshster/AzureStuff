@@ -1,0 +1,9 @@
+{
+  "Subscription": "Visual Studio Ultimate with MSDN",
+  "StorageAccount" : "rakheshlocallyredundant",
+  "StorageType" : "Standard_LRS",
+  "Location" : "SouthEast Asia",
+  "VMImageName" : "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd",
+  "VMTimeZone" : "Arabian Standard Time",
+  "VMInstanceSize" : "Basic_A1" 
+}

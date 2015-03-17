@@ -1,4 +1,11 @@
-﻿# This script must be run with admin rights, if not do it for the user
+﻿[CmdletBinding()]
+Param(
+    [Parameter(Mandatory=$True)]
+    [ValidateScript( { Test-Path $_ } ) ]
+    [string]$AzureEnvFile
+)
+
+# This script must be run with admin rights, if not do it for the user
 # Thanks to http://stackoverflow.com/a/11440595 for the snippet below
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
     Write-Host -ForegroundColor Yellow "Launching a new window to run this script with admin rights ..."
@@ -7,32 +14,33 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     break
 }
 
+# Convert relative path to absolute; not needed here so commenting it out
+# if ($AzureEnvFile -match "^\.") { 
+#    $AzureEnvFile = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)\$(Split-Path -Leaf $AzureEnvFile)"
+# }
+
+# Create a hashtable from the JSON file
+# ConvertFrom-JSON takes as input a string but Get-Content returns an array
+# So convert the array to a string by -join or double quotes like thus: "$(Get-Content $AzureEnvFile)" | ConvertFrom-Json
+$AzureEnv = (Get-Content $AzureEnvFile) -join "`n" | ConvertFrom-Json
+
 # Import Azure module
 # TODO: Put some error logic in here if the Azure module isn't available ...
 Import-Module Azure
 
-# Modify these to suit your scenario
-# TODO: Convert these to parameters I can take from the command line/ pipe
-$AzureSubscription = "Visual Studio Ultimate with MSDN"
-
-# This name needs to be unique across Azure, hence I prefix with my name
-$StorageAccount = "rakheshlocallyredundant"
-$StorageType = "Standard_LRS"
-
-# Preferred location
-$AzureLocation = "SouthEast Asia" 
+# Previously I had all these as variables; now that I have a JSON file I don't want to go around changing the references everywhere
+# So I'll just read these into the variables. 
+$AzureSubscription = $AzureEnv.Subscription
+$StorageAccount = $AzureEnv.StorageAccount
+$StorageType = $AzureEnv.StorageType
+$AzureLocation = $AzureEnv.Location
+$VMImageName = $AzureEnv.VMImageName # Select a different value via: `Get-AzureVMImage | ?{ $_.Label -match "^Windows Server 2012" } | fl ImageName,Label`
+$VMTimeZone = $AzureEnv.VMTimezone
+$VMInstanceSize = $AzureEnv.VMInstanceSize
 
 # I am going to call the affinity group same as my location. It cannot have spaces, so remove these. 
 $AzureAffinityGroup = $AzureLocation -replace "\s*",""
 
-# VHD image to use for installing
-# Select a value via: `Get-AzureVMImage | ?{ $_.Label -match "^Windows Server 2012" } | fl ImageName,Label`
-$VMImageName = "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd"
-
-$VMTimeZone = "Arabian Standard Time"
-
-# VM size and other details
-$VMInstanceSize = "Basic_A1" 
 $VMAdminUser = Read-Host -Prompt ("VM Admin Username")
 $VMAdminPass = "Password"
 # Password complexity check

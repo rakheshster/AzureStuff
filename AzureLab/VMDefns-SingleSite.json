@@ -1,0 +1,29 @@
+[
+   {
+        "Name" : "LONSDC01",
+        "IPAddr" : "192.168.10.4",
+        "AddrSpaceName" : "RAXNET",
+        "Subnet" : "LondonServers",
+        "Role" : [
+                    "Primary DC"
+                 ]
+    },
+    {
+        "Name" : "DUBSDC01",
+        "IPAddr" : "192.168.25.4",
+        "AddrSpaceName" : "RAXNET",
+        "Subnet" : "DubaiServers",
+        "Role" : [
+                    "DC"
+                 ]
+    },
+    {
+        "Name" : "MUSSDC01",
+        "IPAddr" : "192.168.50.4",
+        "AddrSpaceName" : "RAXNET",
+        "Subnet" : "MuscatServers",
+        "Role" : [
+                    "DC"
+                 ]
+    }
+]
