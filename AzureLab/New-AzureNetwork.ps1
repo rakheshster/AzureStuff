@@ -27,14 +27,15 @@ Start-Sleep -Seconds 30
 [bool]$GatewayPresent = 0 # false, assume no Gateway present
 Write-Host -ForegroundColor Green "Checking if Gateways are required"
 foreach ($VNetSite in $(Get-AzureVNetSite)) {
-    Write-Host -ForegroundColor Green -NoNewline "`t Checking $($VNetSite.Name)"
+    Write-Host -ForegroundColor Green -NoNewline "`t * Checking $($VNetSite.Name)"
     if ($VNetSite.GatewaySites) { 
         Write-Host -ForegroundColor Green -NoNewline " ... yes!"
         New-AzureVNetGateway -VNetName $VNetSite.Name -GatewayType DynamicRouting 
         $GatewayPresent = 1 # yes there is a Gateway present
-    }
+    } else { Write-Host -ForegroundColor Green -NoNewline " ... no!" }
     Write-Host ""
 }
+
 
 if ($GatewayPresent) {
     Write-Host -ForegroundColor Green "Initializing Gateways for sites that require it"

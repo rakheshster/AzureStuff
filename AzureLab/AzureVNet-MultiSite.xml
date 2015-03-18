@@ -4,6 +4,7 @@
     <Dns>
       <DnsServers>
         <!-- These should preferrably match the VMs you are defining. No validation is done. -->
+        <!-- Note these don't map to a network unless you do the mapping below. See <DnsServersRef> -->
         <DnsServer name="LONSDC01" IPAddress="192.168.10.4"/>
         <DnsServer name="DUBSDC01" IPAddress="192.168.25.4"/>
         <DnsServer name="MUSSDC01" IPAddress="192.168.50.4"/>
@@ -81,6 +82,9 @@
             </LocalNetworkSiteRef>
           </ConnectionsToLocalNetwork>
         </Gateway>
+        <DnsServersRef>
+          <DnsServerRef name="LONSDC01"/>
+        </DnsServersRef>
       </VirtualNetworkSite>
       <VirtualNetworkSite name="Dubai" AffinityGroup="SouthEastAsia">
         <AddressSpace>
@@ -105,6 +109,9 @@
             </LocalNetworkSiteRef>
           </ConnectionsToLocalNetwork>
         </Gateway>
+        <DnsServersRef>
+          <DnsServerRef name="DUBSDC01"/>
+        </DnsServersRef>
       </VirtualNetworkSite>
       <VirtualNetworkSite name="Muscat" AffinityGroup="SouthEastAsia">
         <AddressSpace>
@@ -129,6 +136,9 @@
             </LocalNetworkSiteRef>
           </ConnectionsToLocalNetwork>
         </Gateway>
+        <DnsServersRef>
+          <DnsServerRef name="MUSSDC01"/>
+        </DnsServersRef>
       </VirtualNetworkSite>
     </VirtualNetworkSites>
   </VirtualNetworkConfiguration>
