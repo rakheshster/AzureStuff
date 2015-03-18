@@ -2,8 +2,17 @@
 Param(
     [Parameter(Mandatory=$True)]
     [ValidateScript( { Test-Path $_ } ) ]
-    [string]$AzureEnvFile
+    [string]$AzureEnvFile,
+
+    [Parameter(Mandatory=$True)]
+    [ValidateScript( { Test-Path $_ } ) ]
+    [string]$AzureVMDefns,
+
+    [Parameter(Mandatory=$True)]
+    [string]$VMName
 )
+
+# Yourun this script point it to the env file, a VM defns file, and specifying a VM you want to initialize. The script will then do the needful.
 
 # This script must be run with admin rights, if not do it for the user
 # Thanks to http://stackoverflow.com/a/11440595 for the snippet below
@@ -23,6 +32,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 # ConvertFrom-JSON takes as input a string but Get-Content returns an array
 # So convert the array to a string by -join or double quotes like thus: "$(Get-Content $AzureEnvFile)" | ConvertFrom-Json
 $AzureEnv = (Get-Content $AzureEnvFile) -join "`n" | ConvertFrom-Json
+$AzureVMs = (Get-Content $AzureVMDefns) -join "`n" | ConvertFrom-Json
 
 # Import Azure module
 # TODO: Put some error logic in here if the Azure module isn't available ...
@@ -34,9 +44,6 @@ $AzureSubscription = $AzureEnv.Subscription
 $StorageAccount = $AzureEnv.StorageAccount
 $StorageType = $AzureEnv.StorageType
 $AzureLocation = $AzureEnv.Location
-$VMImageName = $AzureEnv.VMImageName # Select a different value via: `Get-AzureVMImage | ?{ $_.Label -match "^Windows Server 2012" } | fl ImageName,Label`
-$VMTimeZone = $AzureEnv.VMTimezone
-$VMInstanceSize = $AzureEnv.VMInstanceSize
 
 # I am going to call the affinity group same as my location. It cannot have spaces, so remove these. 
 $AzureAffinityGroup = $AzureLocation -replace "\s*",""
@@ -52,62 +59,8 @@ while (($VMAdminPass.length -lt 8) -or ($VMAdminPass -notmatch "[~!#$%^&*()`]") 
 # I use this object later
 $VMCredObject = New-Object System.Management.Automation.PSCredential ($VMAdminUser, $(ConvertTo-SecureString $VMAdminPass -AsPlainText -Force))
 
-# Here are my Azure VMs.
-# Role "DC" implies DC+DNS.
-$AzureVMs = @(
-    @{
-        "Name" = "LONSDC01"
-        "IPAddr" = "192.168.10.4"
-        "AddrSpaceName" = "RAXNET"
-        "Subnet" = "LondonServers"
-        "Role" = @("Primary DC")
-        # older entries, remove sometime. in fact, TODO: make this object be an input to the script. 
-        #"Subnet" = "Servers"
-        #"AddrSpaceName" = "London"
-        
-    },
-    @{
-        "Name" = "DUBSDC01"
-        "IPAddr" = "192.168.25.4"
-        "AddrSpaceName" = "RAXNET"
-        "Subnet" = "DubaiServers"
-        "Role" = @("DC")
-        # older entries, remove sometime. in fact, TODO: make this object be an input to the script. 
-        #"Subnet" = "Servers"
-        #"AddrSpaceName" = "Dubai"
-        
-    },
-    @{
-        "Name" = "MUSSDC01"
-        "IPAddr" = "192.168.50.4"
-        "AddrSpaceName" = "RAXNET"
-        "Subnet" = "MuscatServers"
-        "Role" = @("DC")
-        # older entries, remove sometime. in fact, TODO: make this object be an input to the script. 
-        #"Subnet" = "Servers"
-        #"AddrSpaceName" = "Muscat"
-        
-    }
-)
+# change the block below ... instead of a loop now I must just find the VM from the hashtable, create it, get its cert .... no more looping
 
-# -x-
-
-# Add your Azure account
-#TODO: What happens if this fails?
-Write-Host -ForegroundColor Green "Launching new window to get Azure credentials"
-Add-AzureAccount
-
-# Create an affinity group
-Write-Host -ForegroundColor Green "Creating Affinity Group: $AzureAffinityGroup"
-New-AzureAffinityGroup -Name $AzureAffinityGroup -Description "$AzureLocation affinity group" -Location $AzureLocation -ErrorAction SilentlyContinue
-
-# Create storage account.
-Write-Host -ForegroundColor Green "Creating Storage Account $StorageAccount"
-New-AzureStorageAccount -StorageAccountName $StorageAccount -AffinityGroup $AzureAffinityGroup -Type $StorageType -ErrorAction SilentlyContinue
-
-# Assign storage account to the subscription
-Write-Host -ForegroundColor Green "Assigning Storage Account $StorageAccount to subscription $AzureSubscription"
-Set-AzureSubscription -CurrentStorageAccountName $StorageAccount -SubscriptionName $AzureSubscription
 
 # Create the VMs
 Write-Host -ForegroundColor Green "Creating VMs"

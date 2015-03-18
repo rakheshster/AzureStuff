@@ -4,26 +4,42 @@
         "IPAddr" : "192.168.10.4",
         "AddrSpaceName" : "London",
         "Subnet" : "Servers",
-        "Role" : [
-                    "Primary DC"
-                 ]
+        "Domain" : "AzureLab.local",
+        "Role" : "Primary DC",
+        "ImageName" : "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd",
+        "Timezone" : "Arabian Standard Time",
+        "InstanceSize" : "Basic_A1"
     },
     {
         "Name" : "DUBSDC01",
         "IPAddr" : "192.168.25.4",
         "AddrSpaceName" : "Dubai",
+        "Domain" : "AzureLab.local",
         "Subnet" : "Servers",
-        "Role" : [
-                    "DC"
-                 ]
+        "Role" : "DC",
+        "ImageName" : "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd",
+        "Timezone" : "Arabian Standard Time",
+        "InstanceSize" : "Basic_A1"
     },
     {
         "Name" : "MUSSDC01",
         "IPAddr" : "192.168.50.4",
         "AddrSpaceName" : "Muscat",
+        "Domain" : "AzureLab.local",
         "Subnet" : "Servers",
-        "Role" : [
-                    "DC"
-                 ]
+        "Role" : "DC",
+        "ImageName" : "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd",
+        "Timezone" : "Arabian Standard Time",
+        "InstanceSize" : "Basic_A1"
+    },
+    {
+        "Name" : "MUSSVR01",
+        "AddrSpaceName" : "Muscat",
+        "Domain" : "AzureLab.local",
+        "Subnet" : "Clients",
+        "Role" : "Client",
+        "ImageName" : "a699494373c04fc0bc8f2bb1389d6106__Windows-Server-2012-R2-201412.01-en.us-127GB.vhd",
+        "Timezone" : "Arabian Standard Time",
+        "InstanceSize" : "Basic_A1"
     }
 ]
